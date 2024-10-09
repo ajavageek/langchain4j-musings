@@ -3,8 +3,8 @@ services:
     build:
       context: .
     environment:
-      LANGCHAIN4J_OLLAMA_CHAT_MODEL_BASE_URL: http://ollama:11434
-      LANGCHAIN4J_OLLAMA_CHAT_MODEL_TIMEOUT: 60s
+      LANGCHAIN4J_OLLAMA_STREAMING_CHAT_MODEL_BASE_URL: http://ollama:11434
+      LANGCHAIN4J_OLLAMA_STREAMING_CHAT_MODEL_TIMEOUT: 60s
     ports:
       - "8080:8080"
     depends_on:

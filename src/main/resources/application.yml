@@ -1,5 +1,5 @@
 spring.application.name: langchain4j-musings
-langchain4j.ollama.chat-model:
+langchain4j.ollama.streaming-chat-model:
   log-requests: true
   log-responses: true
   base-url: http://localhost:11434

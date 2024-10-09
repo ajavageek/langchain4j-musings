@@ -1,0 +1,6 @@
+.idea
+target
+docker-compose.yml
+Dockerfile
+ollama
+.env

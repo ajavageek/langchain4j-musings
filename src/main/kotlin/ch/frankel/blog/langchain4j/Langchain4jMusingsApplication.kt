@@ -1,12 +1,11 @@
 package ch.frankel.blog.langchain4j
 
-import dev.langchain4j.data.message.AiMessage
-import dev.langchain4j.data.message.UserMessage
-import dev.langchain4j.model.StreamingResponseHandler
+import dev.langchain4j.memory.chat.MessageWindowChatMemory
 import dev.langchain4j.model.chat.StreamingChatLanguageModel
-import dev.langchain4j.model.output.Response
-import dev.langchain4j.store.memory.chat.ChatMemoryStore
-import dev.langchain4j.store.memory.chat.InMemoryChatMemoryStore
+import dev.langchain4j.service.AiServices
+import dev.langchain4j.service.MemoryId
+import dev.langchain4j.service.TokenStream
+import dev.langchain4j.service.UserMessage
 import kotlinx.coroutines.reactive.asFlow
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
@@ -21,40 +20,22 @@ import reactor.core.publisher.Sinks
 @SpringBootApplication
 class Langchain4jMusingsApplication
 
-data class StructuredMessage(val sessionId: String, val message: String)
-
-class AppStreamingResponseHandler(
-    private val sink: Sinks.Many<String>,
-    private val store: ChatMemoryStore,
-    private val sessionId: String
-) : StreamingResponseHandler<AiMessage> {
-
-    override fun onNext(token: String) {
-        sink.tryEmitNext(token)
-    }
-
-    override fun onError(error: Throwable) {
-        sink.tryEmitError(error)
-    }
-
-    override fun onComplete(response: Response<AiMessage>) {
-        val message = response.content()?.text()
-        if (message != null) {
-            store.getMessages(sessionId).add(AiMessage(message))
-        }
-        sink.tryEmitComplete()
-    }
+interface ChatBot {
+    fun talk(@MemoryId sessionId: String, @UserMessage message: String): TokenStream
 }
 
-class PromptHandler(private val model: StreamingChatLanguageModel, private val store: ChatMemoryStore) {
+data class StructuredMessage(val sessionId: String, val text: String)
+
+class PromptHandler(private val chatBot: ChatBot) {
 
     suspend fun handle(req: ServerRequest): ServerResponse {
         val message = req.awaitBody<StructuredMessage>()
-        val prompt = UserMessage(message.text)
-        val messages = store.getMessages(message.sessionId)
-        messages.add(prompt)
         val sink = Sinks.many().unicast().onBackpressureBuffer<String>()
-        model.generate(messages, AppStreamingResponseHandler(sink, store, message.sessionId))
+        chatBot.talk(message.sessionId, message.text)
+            .onNext(sink::tryEmitNext)
+            .onError(sink::tryEmitError)
+            .onComplete { sink.tryEmitComplete() }
+            .start()
         return ServerResponse.ok().bodyAndAwait(sink.asFlux().asFlow())
     }
 }
@@ -62,7 +43,12 @@ class PromptHandler(private val model: StreamingChatLanguageModel, private val s
 fun beans() = beans {
     bean {
         coRouter {
-            POST("/")(PromptHandler(ref<StreamingChatLanguageModel>(), InMemoryChatMemoryStore())::handle)
+            val chatBot = AiServices
+                .builder(ChatBot::class.java)
+                .streamingChatLanguageModel(ref<StreamingChatLanguageModel>())
+                .chatMemoryProvider { MessageWindowChatMemory.withMaxMessages(40) }
+                .build()
+            POST("/")(PromptHandler(chatBot)::handle)
         }
     }
 }

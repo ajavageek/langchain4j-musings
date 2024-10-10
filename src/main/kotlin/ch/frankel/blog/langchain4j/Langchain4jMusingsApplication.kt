@@ -3,6 +3,7 @@ package ch.frankel.blog.langchain4j
 import dev.langchain4j.data.message.AiMessage
 import dev.langchain4j.model.StreamingResponseHandler
 import dev.langchain4j.model.chat.StreamingChatLanguageModel
+import dev.langchain4j.model.output.Response
 import kotlinx.coroutines.reactive.asFlow
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
@@ -25,6 +26,11 @@ class AppStreamingResponseHandler(private val sink: Sinks.Many<String>) : Stream
 
     override fun onError(error: Throwable) {
         sink.tryEmitError(error)
+    }
+
+    override fun onComplete(response: Response<AiMessage>) {
+        println(response.content()?.text())
+        sink.tryEmitComplete()
     }
 }
 

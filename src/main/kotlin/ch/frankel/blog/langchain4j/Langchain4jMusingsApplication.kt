@@ -1,11 +1,15 @@
 package ch.frankel.blog.langchain4j
 
+import dev.langchain4j.data.segment.TextSegment
 import dev.langchain4j.memory.chat.MessageWindowChatMemory
 import dev.langchain4j.model.chat.StreamingChatLanguageModel
+import dev.langchain4j.rag.content.retriever.EmbeddingStoreContentRetriever
 import dev.langchain4j.service.AiServices
 import dev.langchain4j.service.MemoryId
 import dev.langchain4j.service.TokenStream
 import dev.langchain4j.service.UserMessage
+import dev.langchain4j.store.embedding.EmbeddingStore
+import dev.langchain4j.store.embedding.inmemory.InMemoryEmbeddingStore
 import kotlinx.coroutines.reactive.asFlow
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
@@ -41,12 +45,19 @@ class PromptHandler(private val chatBot: ChatBot) {
 }
 
 fun beans() = beans {
+    bean<EmbeddingStore<TextSegment>> {
+        InMemoryEmbeddingStore()
+    }
+    bean {
+        BlogDataLoader(ref<EmbeddingStore<TextSegment>>())
+    }
     bean {
         coRouter {
             val chatBot = AiServices
                 .builder(ChatBot::class.java)
                 .streamingChatLanguageModel(ref<StreamingChatLanguageModel>())
                 .chatMemoryProvider { MessageWindowChatMemory.withMaxMessages(40) }
+                .contentRetriever(EmbeddingStoreContentRetriever.from(ref<EmbeddingStore<TextSegment>>()))
                 .build()
             POST("/")(PromptHandler(chatBot)::handle)
         }

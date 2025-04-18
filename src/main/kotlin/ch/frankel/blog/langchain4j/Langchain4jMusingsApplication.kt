@@ -18,6 +18,7 @@ import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import org.springframework.web.reactive.function.server.awaitBody
 import org.springframework.web.reactive.function.server.bodyAndAwait
+import org.springframework.web.reactive.function.server.bodyValueAndAwait
 import org.springframework.web.reactive.function.server.coRouter
 import reactor.core.publisher.Sinks
 
@@ -32,7 +33,7 @@ data class StructuredMessage(val sessionId: String, val text: String)
 
 class PromptHandler(private val chatBot: ChatBot) {
 
-    suspend fun handle(req: ServerRequest): ServerResponse {
+    suspend fun handle(req: ServerRequest) = try {
         val message = req.awaitBody<StructuredMessage>()
         val sink = Sinks.many().unicast().onBackpressureBuffer<String>()
         chatBot.talk(message.sessionId, message.text)
@@ -40,7 +41,9 @@ class PromptHandler(private val chatBot: ChatBot) {
             .onError(sink::tryEmitError)
             .onCompleteResponse { sink.tryEmitComplete() }
             .start()
-        return ServerResponse.ok().bodyAndAwait(sink.asFlux().asFlow())
+        ServerResponse.ok().bodyAndAwait(sink.asFlux().asFlow())
+    } catch (e: Exception) {
+        ServerResponse.badRequest().bodyValueAndAwait(e.message ?: "Unknown error")
     }
 }
 

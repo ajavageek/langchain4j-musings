@@ -6,7 +6,6 @@ import dev.langchain4j.model.chat.StreamingChatLanguageModel
 import dev.langchain4j.rag.content.retriever.EmbeddingStoreContentRetriever
 import dev.langchain4j.service.AiServices
 import dev.langchain4j.service.MemoryId
-import dev.langchain4j.service.TokenStream
 import dev.langchain4j.service.UserMessage
 import dev.langchain4j.store.embedding.EmbeddingStore
 import dev.langchain4j.store.embedding.inmemory.InMemoryEmbeddingStore
@@ -20,13 +19,13 @@ import org.springframework.web.reactive.function.server.awaitBody
 import org.springframework.web.reactive.function.server.bodyAndAwait
 import org.springframework.web.reactive.function.server.bodyValueAndAwait
 import org.springframework.web.reactive.function.server.coRouter
-import reactor.core.publisher.Sinks
+import reactor.core.publisher.Flux
 
 @SpringBootApplication
 class Langchain4jMusingsApplication
 
 interface ChatBot {
-    fun talk(@MemoryId sessionId: String, @UserMessage message: String): TokenStream
+    fun talk(@MemoryId sessionId: String, @UserMessage message: String): Flux<String>
 }
 
 data class StructuredMessage(val sessionId: String, val text: String)
@@ -35,13 +34,8 @@ class PromptHandler(private val chatBot: ChatBot) {
 
     suspend fun handle(req: ServerRequest) = try {
         val message = req.awaitBody<StructuredMessage>()
-        val sink = Sinks.many().unicast().onBackpressureBuffer<String>()
-        chatBot.talk(message.sessionId, message.text)
-            .onPartialResponse(sink::tryEmitNext)
-            .onError(sink::tryEmitError)
-            .onCompleteResponse { sink.tryEmitComplete() }
-            .start()
-        ServerResponse.ok().bodyAndAwait(sink.asFlux().asFlow())
+        val flux = chatBot.talk(message.sessionId, message.text)
+        ServerResponse.ok().bodyAndAwait(flux.asFlow())
     } catch (e: Exception) {
         ServerResponse.badRequest().bodyValueAndAwait(e.message ?: "Unknown error")
     }

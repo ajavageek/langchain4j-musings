@@ -15,7 +15,7 @@
     <properties>
         <java.version>21</java.version>
         <kotlin.version>1.9.25</kotlin.version>
-        <langchain4j.version>0.35.0</langchain4j.version>
+        <langchain4j.version>1.0.0-beta3</langchain4j.version>
     </properties>
     <dependencies>
         <dependency>

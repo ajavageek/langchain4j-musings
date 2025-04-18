@@ -36,9 +36,9 @@ class PromptHandler(private val chatBot: ChatBot) {
         val message = req.awaitBody<StructuredMessage>()
         val sink = Sinks.many().unicast().onBackpressureBuffer<String>()
         chatBot.talk(message.sessionId, message.text)
-            .onNext(sink::tryEmitNext)
+            .onPartialResponse(sink::tryEmitNext)
             .onError(sink::tryEmitError)
-            .onComplete { sink.tryEmitComplete() }
+            .onCompleteResponse { sink.tryEmitComplete() }
             .start()
         return ServerResponse.ok().bodyAndAwait(sink.asFlux().asFlow())
     }

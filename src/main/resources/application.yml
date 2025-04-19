@@ -1,4 +1,5 @@
-spring.application.name: langchain4j-musings
+spring.application:name: langchain4j-musings
+application.mcp.url: http://localhost:8081
 langchain4j.ollama.streaming-chat-model:
   log-requests: true
   log-responses: true

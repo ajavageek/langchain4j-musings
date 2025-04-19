@@ -5,3 +5,7 @@ langchain4j.ollama.streaming-chat-model:
   log-responses: true
   base-url: http://localhost:11434
   model-name: llama3.2
+langchain4j.open-ai.streaming-chat-model:
+  log-requests: true
+  log-responses: true
+  model-name: gpt-4o-mini

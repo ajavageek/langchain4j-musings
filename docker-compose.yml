@@ -2,19 +2,14 @@ services:
   langchain4j:
     build:
       context: .
+    env_file:
+      - .env
     environment:
-      LANGCHAIN4J_OLLAMA_STREAMING_CHAT_MODEL_BASE_URL: http://ollama:11434
-      LANGCHAIN4J_OLLAMA_STREAMING_CHAT_MODEL_TIMEOUT: 60s
       APPLICATION_MCP_URL: http://mcp-server:8080/sse
     ports:
       - "8080:8080"
     depends_on:
-      - ollama
       - mcp-server
-  ollama:
-    image: ollama/ollama
-    volumes:
-      - ./ollama:/root/.ollama
   mcp-server:
     build:
       context: github-mcp-server
